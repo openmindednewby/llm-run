@@ -44,6 +44,10 @@ function planWebllm(device: DeviceProfile, m: ModelManifest, budget: number, out
 }
 
 function planGguf(device: DeviceProfile, m: ModelManifest, budget: number, out: PlanOut): void {
+  const supported = new Set<string>(QUANT_PREFERENCE);
+  for (const v of m.gguf.filter((g) => !supported.has(g.quant))) {
+    out.reasons.push(`${v.quant}: not in the supported quant list`);
+  }
   for (const v of orderByPreference(m.gguf)) {
     const why = rejectGguf(v, device, budget);
     if (why === null) {

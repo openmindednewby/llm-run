@@ -30,3 +30,10 @@ it('storage too small → reason names GB needed vs free', () => {
   const full = { ...gpuLaptop, storageFreeBytes: 0.5 * GiB };
   expect(planRun(full, manifest([1 * GiB]), {}).reasons.join(' ')).toMatch(/storage/);
 });
+it('names every quant outside the preference list as a reason (no silent refusal)', () => {
+  const m = { ...manifest([1 * GiB]), gguf: ['Q3_K_M', 'F16'].map((quant) => ({ quant, files: [{ path: `${quant}.gguf`, size: GiB, sha256: null }], totalBytes: GiB })) };
+  const p = planRun(gpuLaptop, m, {});
+  expect(p.ok).toBe(false);
+  expect(p.reasons.join(' ')).toMatch(/Q3_K_M/);
+  expect(p.reasons.join(' ')).toMatch(/F16/);
+});
