@@ -1,0 +1,4 @@
+@dloizides/llm-run
+Copyright 2026 Demetrios Loizides
+Uses @wllama/wllama (MIT), llama.cpp (MIT), @mlc-ai/web-llm (Apache-2.0), hash-wasm (MIT), wasm-feature-detect (Apache-2.0).
+Model weights are downloaded from Hugging Face at run time and are governed by each model's own licence.
