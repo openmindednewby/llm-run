@@ -4,3 +4,5 @@ coverage/
 test-results/
 playwright-report/
 .npmrc
+e2e/fixtures/models/
+e2e/dist/
