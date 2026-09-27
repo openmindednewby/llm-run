@@ -1,4 +1,4 @@
-import { createOpfsSinks } from '../../../src/store/opfsSinks';
+import { createOpfsSinks, PART_BYTES } from '../../../src/store/opfsSinks';
 
 // Minimal OPFS double: writes land in a swap copy that replaces the file on close() (as in browsers),
 // and a write that overlaps another write on the same file fails the test.
@@ -43,6 +43,9 @@ class FakeDir {
     if (!f && !o?.create) { return Promise.reject(new DOMException('missing', 'NotFoundError')); }
     if (!f) { f = new FakeFile(); this.files.set(name, f); }
     return Promise.resolve(new FakeHandle(f, this.writable));
+  }
+  removeEntry(name: string): Promise<void> {
+    return this.files.delete(name) ? Promise.resolve() : Promise.reject(new DOMException('missing', 'NotFoundError'));
   }
   getDirectoryHandle(): Promise<FakeDir> {
     return Promise.resolve(this);
@@ -112,5 +115,51 @@ describe('createOpfsSinks', () => {
     await sink?.append(enc('q'));
     await sink?.close();
     expect(await sink?.size()).toBe(1);
+  });
+
+  it('truncate after commit removes the .ok marker: a later getCommitted serves nothing', async () => {
+    withOpfs(new FakeDir());
+    const sinks = await createOpfsSinks();
+    const sink = await sinks?.open('k');
+    await sink?.append(enc('ab'));
+    await sink?.commit();
+    await sink?.truncate();
+    await expect(sinks?.getCommitted('k')).resolves.toBeNull();
+    expect(await sink?.size()).toBe(0);
+  });
+
+  it('removes the .probe file after the check', async () => {
+    const dir = new FakeDir();
+    withOpfs(dir);
+    await createOpfsSinks();
+    expect(dir.files.has('.probe')).toBe(false);
+  });
+
+  it('an append crossing a part boundary closes the full part and starts the next', async () => {
+    const dir = new FakeDir();
+    withOpfs(dir);
+    const sinks = await createOpfsSinks();
+    const sink = await sinks?.open('k');
+    const big = new Uint8Array(PART_BYTES + 2).fill(7);
+    await sink?.append(big);
+    expect(dir.files.get('k.part0000')?.data.length).toBe(PART_BYTES); // closed when full
+    await sink?.close();
+    expect(dir.files.get('k.part0001')?.data.length).toBe(2);
+    expect(await sink?.size()).toBe(PART_BYTES + 2);
+    const blob = await sink?.commit();
+    expect(blob?.size).toBe(PART_BYTES + 2);
+    expect((await sinks?.getCommitted('k'))?.size).toBe(PART_BYTES + 2);
+  });
+
+  it('after a simulated reload (writer never closed) size equals the committed parts', async () => {
+    const dir = new FakeDir();
+    withOpfs(dir);
+    const before = await (await createOpfsSinks())?.open('k');
+    await before?.append(new Uint8Array(PART_BYTES + 5).fill(1)); // tab closes: the 5-byte tail is lost
+    const after = await (await createOpfsSinks())?.open('k');
+    expect(await after?.size()).toBe(PART_BYTES);
+    await after?.append(enc('xyz'));
+    await after?.close();
+    expect(await after?.size()).toBe(PART_BYTES + 3);
   });
 });
