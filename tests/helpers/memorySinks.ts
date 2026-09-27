@@ -1,16 +1,12 @@
-// In-memory SinkFactory for download tests. MemSink/MemSinks mirror src ByteSink/SinkFactory
-// locally so this helper type-checks before src/store/download.ts exists; the compiler checks
-// the match where a test passes memorySinks() as EnsureFileRequest.sinks.
+// In-memory SinkFactory for download tests, typed against src/types ByteSink/SinkFactory.
+// `bytes` exposes the raw chunks so tests can inspect or corrupt a partial download.
+import type { ByteSink, SinkFactory } from '../../src/types';
+
 type Chunk = Uint8Array<ArrayBuffer>;
 
-export interface MemSink {
-  size(): Promise<number>; append(c: Uint8Array): Promise<void>; close(): Promise<void>;
-  read(): AsyncIterable<Uint8Array>; truncate(): Promise<void>; commit(): Promise<Blob>;
-}
-export interface MemSinks {
+export type MemSink = ByteSink;
+export interface MemSinks extends SinkFactory {
   bytes: Map<string, Chunk[]>;
-  open(key: string): Promise<MemSink>;
-  getCommitted(key: string): Promise<Blob | null>;
 }
 
 async function* replay(chunks: Chunk[]): AsyncGenerator<Chunk> {
