@@ -26,7 +26,7 @@ const rankAuthor = (candidate: string, owner: string): number => {
   return TRUSTED_QUANTIZERS.includes(author) ? RANK_TRUSTED : RANK_OTHER;
 };
 
-/** Searches the Hub for `<author>/<name>-GGUF`, preferring the same author, then trusted quantizers; null if none or search fails. */
+/** Searches the Hub for `<author>/<name>-GGUF` or `<author>/<owner>_<name>-GGUF`, preferring the same author, then trusted quantizers; null if none or search fails. */
 async function findGgufDerivative(id: string, opts: HubOptions): Promise<string | null> {
   const [owner = '', name = ''] = id.split('/');
   const url = `${trimTrailingSlashes(opts.hubUrl)}/api/models?search=${encodeURIComponent(name)}&filter=gguf&sort=downloads&direction=-1&limit=${SEARCH_LIMIT}`;
@@ -38,10 +38,11 @@ async function findGgufDerivative(id: string, opts: HubOptions): Promise<string 
   if (!Array.isArray(found)) {
     return null;
   }
-  const suffix = `/${name.toLowerCase()}-gguf`;
+  // Same-name re-uploads (`<author>/<name>-GGUF`) and owner-prefixed ones (bartowski: `<author>/<owner>_<name>-GGUF`).
+  const suffixes = [`/${name}-gguf`, `/${owner}_${name}-gguf`].map((s) => s.toLowerCase());
   const ids = (found as { id?: unknown }[])
     .map((m) => m.id)
-    .filter((m): m is string => typeof m === 'string' && m.toLowerCase().endsWith(suffix));
+    .filter((m): m is string => typeof m === 'string' && suffixes.some((s) => m.toLowerCase().endsWith(s)));
   ids.sort((a, b) => rankAuthor(a, owner) - rankAuthor(b, owner));
   return ids[0] ?? null;
 }
