@@ -2,7 +2,9 @@ import { run } from '../../src';
 import { fakeFetch, json, sse } from '../helpers/fakeFetch';
 import { phone, tinyDevice } from '../helpers/devices';
 import { ggufRepo } from '../helpers/hubFixtures';
+import { LADDER } from '../../src/auto/ladder';
 
+const MiB = 1024 ** 2;
 const FALLBACK = 'https://my.site/llm';
 const fallbackRoute = (u: string): Response | undefined => (u === `${FALLBACK}/chat/completions` ? sse('from ', 'server') : undefined);
 
@@ -22,7 +24,13 @@ describe('AC-4 nothing fits + fallback set → replies come from the fallback UR
   });
 
   it('AC-4 run("auto") with nothing in the ladder fitting + fallback → replies come from the fallback URL', async () => {
-    const ai = await run('auto', { fetchFn: fakeFetch(fallbackRoute), device: tinyDevice, fallback: FALLBACK });
+    const ladderHub = (u: string): Response | undefined => {
+      const entry = LADDER.find((e) => u.includes(`/api/models/${e.id}`));
+      return entry ? json({ id: entry.id, sha: 'r', gated: false, cardData: { license: entry.license },
+        gguf: { architecture: 'qwen3' }, siblings: [{ rfilename: 'm-Q4_K_M.gguf', size: entry.approxMiB * MiB,
+          lfs: { sha256: 'c'.repeat(64), size: entry.approxMiB * MiB } }] }) : undefined;
+    };
+    const ai = await run('auto', { fetchFn: fakeFetch(ladderHub, fallbackRoute), device: tinyDevice, fallback: FALLBACK });
     await expect(ai.chat('hi')).resolves.toBe('from server');
   });
 });

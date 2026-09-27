@@ -13,7 +13,8 @@ describe('AC-8 gated model without hfToken → E_GATED; with a valid token it lo
 
   it('AC-8 with a token → the token is sent to the Hub as a Bearer header', async () => {
     const fetchFn = fakeFetch(() => json(repo));
-    await canRun('org/gated-GGUF', { fetchFn, device: gpuLaptop, hfToken: 'hf_x' });
+    const r = await canRun('org/gated-GGUF', { fetchFn, device: gpuLaptop, hfToken: 'hf_x' });
+    expect(r).toMatchObject({ ok: true });
     expect(new Headers(fetchFn.mock.calls[0]?.[1]?.headers).get('authorization')).toBe('Bearer hf_x');
   });
 

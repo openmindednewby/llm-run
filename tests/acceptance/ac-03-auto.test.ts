@@ -1,7 +1,7 @@
 import { canRun, run } from '../../src';
 import { LADDER } from '../../src/auto/ladder';
 import { fakeFetch, json } from '../helpers/fakeFetch';
-import { gpuLaptop, phone, tinyDevice } from '../helpers/devices';
+import { gpuLaptop, phone, tinyDevice, workstation } from '../helpers/devices';
 
 // Node cannot load a runtime, so "picks the largest that fits" is asserted through canRun('auto')
 // (same planner); run('auto') loading a model in a real browser is covered by the Task 14 harness.
@@ -33,6 +33,11 @@ describe('AC-3 run("auto") picks the largest permissive ladder model that fits t
     const big = bytesOf(await canRun('auto', { fetchFn: hub, device: gpuLaptop }));
     const small = bytesOf(await canRun('auto', { fetchFn: hub, device: phone }));
     expect(big).toBeGreaterThan(small);
+  });
+
+  it('AC-3 canRun("auto") on a device every ladder entry fits picks the largest entry', async () => {
+    const largest = Math.max(...LADDER.map((e) => e.approxMiB)) * MiB;
+    expect(bytesOf(await canRun('auto', { fetchFn: hub, device: workstation }))).toBe(largest);
   });
 
   it('AC-3 canRun("auto") answers with a model from the ladder', async () => {

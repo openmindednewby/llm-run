@@ -1,8 +1,15 @@
 import { warnIfNotIsolated, resetIsolationWarningForTests } from '../../src/env/warnIfNotIsolated';
 
 describe('AC-11 host page not cross-origin isolated → one console warning with the COOP/COEP fix', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'crossOriginIsolated');
+
   afterEach(() => {
     jest.restoreAllMocks();
+    if (original) {
+      Object.defineProperty(globalThis, 'crossOriginIsolated', original);
+    } else {
+      delete (globalThis as { crossOriginIsolated?: boolean }).crossOriginIsolated;
+    }
   });
 
   it('AC-11 warns once, naming Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy', () => {

@@ -17,6 +17,7 @@ describe('AC-12 chat.completions.create({ stream:true }) output matches the Open
       choices: [{ index: 0, delta: { content: 'Hel' }, finish_reason: null }] });
     expect(typeof chunks[0]?.id).toBe('string');
     expect(typeof chunks[0]?.created).toBe('number');
+    expect(chunks.map((c) => c.choices[0]?.delta?.content ?? '').join('')).toBe('Hello');
     expect(chunks.at(-1)?.choices[0]?.finish_reason).toBe('stop');
   });
 
