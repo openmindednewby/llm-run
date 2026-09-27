@@ -10,7 +10,7 @@ export default defineConfig({
   reporter: [['list']],
   use: { baseURL: 'http://localhost:4173' },
   webServer: {
-    command: 'npx vite build --config e2e/vite.config.ts && node e2e/fixtures/server.mjs',
+    command: 'npx vite build --config e2e/vite.config.ts && node e2e/fixtures/server.ts',
     url: 'http://localhost:4173',
     reuseExistingServer: false,
     timeout: 120_000,

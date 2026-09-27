@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node", "@webgpu/types"]
+  },
+  "include": ["src/**/*", "e2e/**/*.ts", "playwright.config.ts"],
+  "exclude": ["node_modules", "dist", "e2e/dist", "**/*.test.ts"]
+}
