@@ -1,4 +1,4 @@
-/** Optional teardown, run once if the consumer stops early (break / throw in for-await). */
+/** Optional teardown, run exactly once: on end, on fail, or when the consumer stops early. */
 export type Cleanup = () => void;
 type Start<T> = (push: (v: T) => void, end: () => void, fail: (e: unknown) => void) => Cleanup | void;
 
@@ -15,11 +15,18 @@ export function callbackToIterable<T>(start: Start<T>): AsyncIterable<T> {
         wake = null;
       };
       let cleanup: Cleanup | null = null;
+      let cleaned = false;
+      // Runs once; if end/fail fire synchronously inside start(), it runs as soon as start returns.
+      const runCleanup = (): void => {
+        if (cleaned || cleanup === null) {
+          return;
+        }
+        cleaned = true;
+        cleanup();
+      };
       const stop = (): void => {
         done = true;
-        const c = cleanup;
-        cleanup = null;
-        c?.();
+        runCleanup();
       };
       const returned = start(
         (v) => {
@@ -28,14 +35,19 @@ export function callbackToIterable<T>(start: Start<T>): AsyncIterable<T> {
         },
         () => {
           done = true;
+          runCleanup();
           notify();
         },
         (e) => {
           error = e ?? new Error('failed');
+          runCleanup();
           notify();
         },
       );
       cleanup = returned ?? null;
+      if (done || error !== null) {
+        runCleanup();
+      }
       return {
         async next(): Promise<IteratorResult<T>> {
           for (;;) {

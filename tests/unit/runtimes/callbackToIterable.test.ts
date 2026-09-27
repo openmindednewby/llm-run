@@ -14,3 +14,15 @@ it('calls the cleanup once when the consumer breaks early', async () => {
   for await (const v of it) { expect(v).toBe('a'); break; }
   expect(cleanup).toHaveBeenCalledTimes(1);
 });
+it('calls the cleanup once when the producer ends', async () => {
+  const cleanup = jest.fn();
+  const it = callbackToIterable<string>((push, end) => { setTimeout(() => { push('a'); end(); }, 0); return cleanup; });
+  const out: string[] = []; for await (const v of it) out.push(v);
+  expect([out, cleanup.mock.calls.length]).toEqual([['a'], 1]);
+});
+it('calls the cleanup once when the producer fails synchronously', async () => {
+  const cleanup = jest.fn();
+  const it = callbackToIterable<string>((_p, _e, fail) => { fail(new Error('boom')); return cleanup; });
+  await expect((async () => { for await (const _ of it) { /* drain */ } })()).rejects.toThrow('boom');
+  expect(cleanup).toHaveBeenCalledTimes(1);
+});
