@@ -101,3 +101,14 @@ describe('ensureFile', () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('ensureFile storage errors', () => {
+  it('a sink whose append throws QuotaExceededError → E_STORAGE, not retried', async () => {
+    const quota = new DOMException('full', 'QuotaExceededError');
+    const base = memorySinks();
+    const sinks = { ...base, open: async (k: string) => ({ ...(await base.open(k)), append: () => Promise.reject(quota) }) };
+    const fetchFn = jest.fn(async () => new Response(bytes)) as unknown as typeof fetch;
+    await expect(ensureFile({ file, url: 'https://h/m.gguf', sinks, fetchFn })).rejects.toMatchObject({ code: 'E_STORAGE' });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+});

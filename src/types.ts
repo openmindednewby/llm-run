@@ -85,6 +85,13 @@ export interface SinkFactory {
   getCommitted(key: string): Promise<Blob | null>;
 }
 
+/** wllama wasm locations; structurally identical to wllama's AssetsPathConfig. */
+export interface WllamaAssetPaths {
+  default: string;
+  'single-thread/wllama.wasm'?: string;
+  'multi-thread/wllama.wasm'?: string;
+}
+
 export interface RunOptions {
   hfToken?: string;
   hubUrl?: string;
@@ -94,6 +101,11 @@ export interface RunOptions {
   powerPreference?: 'low-power' | 'high-performance';
   onProgress?: (e: ProgressEvent) => void;
   onWarning?: (message: string) => void;
+  /**
+   * Where wllama loads its wasm from (same shape as wllama's own config). Default: the pinned
+   * jsDelivr copy. Self-host it for a strict CSP, COEP without CORP from a CDN, or offline use.
+   */
+  wllamaAssetPaths?: WllamaAssetPaths;
   /** test + advanced seams */
   fetchFn?: typeof fetch;
   device?: DeviceProfile;

@@ -8,6 +8,8 @@ const MAX_NETWORK_ATTEMPTS = 3;
 const MAX_INTEGRITY_ATTEMPTS = 2;
 const HTTP_PARTIAL = 206;
 
+const nameOf = (e: unknown): unknown => (typeof e === 'object' && e !== null ? (e as { name?: unknown }).name : undefined);
+
 export interface EnsureFileRequest {
   file: ModelFile;
   url: string;
@@ -80,6 +82,9 @@ async function fill(sink: ByteSink, req: EnsureFileRequest): Promise<void> {
     } catch (e) {
       if (e instanceof LlmRunError) {
         throw e;
+      }
+      if (nameOf(e) === 'QuotaExceededError') {
+        throw new LlmRunError(ErrorCode.Storage, `not enough browser storage to cache ${req.file.path}: ${String(e)}`);
       }
       lastError = e;
     }
