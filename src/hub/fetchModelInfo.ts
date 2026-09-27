@@ -29,7 +29,7 @@ export interface HubOptions {
 export const hubHeaders = (hfToken?: string): HeadersInit =>
   hfToken !== undefined && hfToken !== '' ? { authorization: `Bearer ${hfToken}` } : {};
 
-const trimTrailingSlashes = (url: string): string => {
+export const trimTrailingSlashes = (url: string): string => {
   let end = url.length;
   while (end > 0 && url[end - 1] === '/') {
     end -= 1;
