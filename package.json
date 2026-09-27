@@ -30,7 +30,7 @@
     "clean": "rimraf dist coverage",
     "build": "rimraf dist && tsup",
     "test": "jest",
-    "test:release": "jest tests/unit tests/acceptance/ac-02-can-run.test.ts tests/acceptance/ac-11-isolation-warning.test.ts",
+    "test:release": "jest tests/unit tests/acceptance/ac-02-can-run.test.ts tests/acceptance/ac-11-isolation-warning.test.ts tests/acceptance/ac-07-integrity.test.ts",
     "lint": "eslint src tests --ext .ts --no-error-on-unmatched-pattern",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
