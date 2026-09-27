@@ -36,6 +36,25 @@ describe('ensureFile', () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
+  it('concurrent calls for one key share a single download (no interleaved appends)', async () => {
+    const sinks = memorySinks();
+    const fetchFn = jest.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      pull: async (c): Promise<void> => {
+        await new Promise((r) => setTimeout(r, 1));
+        c.enqueue(bytes.slice(0, 1));
+        c.enqueue(bytes.slice(1));
+        c.close();
+      },
+    })));
+    const [a, b] = await Promise.all([
+      ensureFile({ file, url: 'u', sinks, fetchFn }),
+      ensureFile({ file, url: 'u', sinks, fetchFn }),
+    ]);
+    expect(new Uint8Array(await a.arrayBuffer())).toEqual(bytes);
+    expect(new Uint8Array(await b.arrayBuffer())).toEqual(bytes);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
   it('server ignores Range (200) → restarts from zero', async () => {
     const sinks = memorySinks();
     const s = await sinks.open(file.sha256);

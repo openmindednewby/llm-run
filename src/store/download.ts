@@ -20,12 +20,41 @@ export interface EnsureFileRequest {
 /** Cache key for a file: its SHA-256 when the Hub gave one, else the encoded URL. */
 export const fileKey = (f: ModelFile, url: string): string => f.sha256 ?? encodeURIComponent(url);
 
+/** Last queued ensureFile per cache key, per SinkFactory: one download per key at a time. */
+const inFlight = new WeakMap<SinkFactory, Map<string, Promise<unknown>>>();
+
 /**
  * Returns the file as a Blob: from the cache when committed, else downloaded with Range resume
  * (3 network attempts) and SHA-256 verified (one re-fetch on mismatch, then E_INTEGRITY).
+ * Concurrent calls for the same key on the same sinks run one after another, so their appends
+ * never interleave; the later call then finds the file committed and downloads nothing.
  */
-export async function ensureFile(req: EnsureFileRequest): Promise<Blob> {
+export function ensureFile(req: EnsureFileRequest): Promise<Blob> {
   const key = fileKey(req.file, req.url);
+  if (!req.sinks) {
+    return download(req, key);
+  }
+  let queue = inFlight.get(req.sinks);
+  if (!queue) {
+    queue = new Map();
+    inFlight.set(req.sinks, queue);
+  }
+  const keyQueue = queue;
+  const run = (keyQueue.get(key) ?? Promise.resolve()).then(
+    () => download(req, key),
+    () => download(req, key),
+  );
+  const settled = run.catch(() => undefined);
+  keyQueue.set(key, settled);
+  void settled.then(() => {
+    if (keyQueue.get(key) === settled) {
+      keyQueue.delete(key);
+    }
+  });
+  return run;
+}
+
+async function download(req: EnsureFileRequest, key: string): Promise<Blob> {
   const cached = req.sinks ? await req.sinks.getCommitted(key) : null;
   if (cached) {
     return cached;
