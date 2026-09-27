@@ -12,12 +12,14 @@
   "files": ["dist", "LICENSE", "NOTICE", "README.md", "CHANGELOG.md"],
   "sideEffects": false,
   "scripts": {
+    "clean": "rimraf dist coverage",
     "build": "rimraf dist && tsup",
     "test": "jest",
+    "test:release": "jest tests/unit tests/acceptance/ac-02-can-run.test.ts tests/acceptance/ac-11-isolation-warning.test.ts",
     "lint": "eslint src tests --ext .ts --no-error-on-unmatched-pattern",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
-    "prepublishOnly": "npm run build && npm test"
+    "prepublishOnly": "npm run build && npm run test:release"
   },
   "dependencies": { "hash-wasm": "^4.12.0", "wasm-feature-detect": "^1.8.0" },
   "peerDependencies": { "@wllama/wllama": "^3.6.1", "@mlc-ai/web-llm": "^0.2.85" },

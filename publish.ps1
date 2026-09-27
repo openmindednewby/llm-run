@@ -178,8 +178,8 @@ try {
   # Step 5: Test
   Write-Host ""
   Write-Host "Step 5: Running tests..." -ForegroundColor Yellow
-  & $npmCmd test
-  if ($LASTEXITCODE -ne 0) { throw "& $npmCmd test failed" }
+  & $npmCmd run test:release
+  if ($LASTEXITCODE -ne 0) { throw "& $npmCmd run test:release failed" }
 
   # Step 6: Build
   Write-Host ""

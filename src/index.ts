@@ -3,4 +3,4 @@ export { LlmRunError, ErrorCode } from './errors';
 export { Runtime } from './types';
 export type * from './types';
 // `run` is exported once it exists (BLLM-1 plan-1 Task 13).
-export const VERSION = '0.0.0';
+export const VERSION = '0.1.0';
