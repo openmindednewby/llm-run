@@ -37,3 +37,15 @@ it('sends hfToken on the search request', async () => {
   const search = fetchFn.mock.calls.find((c) => c[0].includes('/api/models?'));
   expect(search?.[1]?.headers).toEqual({ authorization: 'Bearer hf_x' });
 });
+const gatedBaseFetch = (): ReturnType<typeof fakeFetch> => fakeFetch(
+  (u) => (u.includes('/api/models/meta/Llama-1B?') ? json({ id: 'meta/Llama-1B', sha: 'r', gated: 'manual', cardData: { license: 'llama3.2' }, siblings: [{ rfilename: 'model.safetensors' }] }) : undefined),
+  (u) => (u.includes('/api/models?') ? json([{ id: 'bartowski/meta_Llama-1B-GGUF' }]) : undefined),
+  (u) => (u.includes('/api/models/bartowski/meta_Llama-1B-GGUF?') ? json(ggufRepo('bartowski/meta_Llama-1B-GGUF', 'llama', 800)) : undefined));
+it('gated base + ungated re-upload, no token → manifest stays gated with the base licence (E_GATED fires downstream)', async () => {
+  const m = await resolveManifest('meta/Llama-1B', { hubUrl: 'https://hub', fetchFn: gatedBaseFetch() });
+  expect([m.id, m.gated, m.license]).toEqual(['bartowski/meta_Llama-1B-GGUF', true, 'llama3.2']);
+});
+it('gated base with hfToken still resolves to the derivative', async () => {
+  const m = await resolveManifest('meta/Llama-1B', { hubUrl: 'https://hub', hfToken: 'hf_x', fetchFn: gatedBaseFetch() });
+  expect([m.id, m.sourceId, m.gguf.length]).toEqual(['bartowski/meta_Llama-1B-GGUF', 'meta/Llama-1B', 1]);
+});

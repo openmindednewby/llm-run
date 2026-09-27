@@ -15,7 +15,12 @@ export async function resolveManifest(id: string, opts: HubOptions): Promise<Mod
     return manifest;
   }
   const derivative = await findGgufDerivative(id, opts);
-  return derivative !== null ? { ...buildManifest(await fetchModelInfo(derivative, opts), id), sourceId: id } : manifest;
+  if (derivative === null) {
+    return manifest;
+  }
+  const deriv = buildManifest(await fetchModelInfo(derivative, opts), id);
+  // A re-upload inherits the base's terms: an ungated -GGUF copy must not bypass a gated base (AC-8).
+  return { ...deriv, sourceId: id, gated: manifest.gated || deriv.gated, license: manifest.license ?? deriv.license };
 }
 
 const rankAuthor = (candidate: string, owner: string): number => {
