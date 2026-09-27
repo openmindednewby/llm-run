@@ -1,4 +1,6 @@
-type Start<T> = (push: (v: T) => void, end: () => void, fail: (e: unknown) => void) => void;
+/** Optional teardown, run once if the consumer stops early (break / throw in for-await). */
+export type Cleanup = () => void;
+type Start<T> = (push: (v: T) => void, end: () => void, fail: (e: unknown) => void) => Cleanup | void;
 
 /** Bridges a push/end/fail callback API into an AsyncIterable (values buffered in order). */
 export function callbackToIterable<T>(start: Start<T>): AsyncIterable<T> {
@@ -12,7 +14,14 @@ export function callbackToIterable<T>(start: Start<T>): AsyncIterable<T> {
         wake?.();
         wake = null;
       };
-      start(
+      let cleanup: Cleanup | null = null;
+      const stop = (): void => {
+        done = true;
+        const c = cleanup;
+        cleanup = null;
+        c?.();
+      };
+      const returned = start(
         (v) => {
           queue.push(v);
           notify();
@@ -26,6 +35,7 @@ export function callbackToIterable<T>(start: Start<T>): AsyncIterable<T> {
           notify();
         },
       );
+      cleanup = returned ?? null;
       return {
         async next(): Promise<IteratorResult<T>> {
           for (;;) {
@@ -42,6 +52,14 @@ export function callbackToIterable<T>(start: Start<T>): AsyncIterable<T> {
               wake = r;
             });
           }
+        },
+        return(): Promise<IteratorResult<T>> {
+          stop();
+          return Promise.resolve({ value: undefined, done: true });
+        },
+        throw(e?: unknown): Promise<IteratorResult<T>> {
+          stop();
+          return Promise.reject(e);
         },
       };
     },

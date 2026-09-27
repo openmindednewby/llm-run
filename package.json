@@ -41,7 +41,7 @@
     "wasm-feature-detect": "^1.8.0"
   },
   "peerDependencies": {
-    "@wllama/wllama": "^3.6.1",
+    "@wllama/wllama": "3.6.1",
     "@mlc-ai/web-llm": "^0.2.85"
   },
   "peerDependenciesMeta": {
@@ -50,7 +50,7 @@
     }
   },
   "devDependencies": {
-    "@wllama/wllama": "^3.6.1",
+    "@wllama/wllama": "3.6.1",
     "@mlc-ai/web-llm": "^0.2.85",
     "@webgpu/types": "^0.1.60",
     "@playwright/test": "^1.55.0",

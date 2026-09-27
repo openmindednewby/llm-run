@@ -5,13 +5,16 @@ import { callbackToIterable } from './callbackToIterable';
 const DEFAULT_MAX_TOKENS = 512;
 const DEFAULT_TEMPERATURE = 0.7;
 
+/** Exact wllama version: package.json peer + dev pin and the CDN URL all derive from this. */
+export const WLLAMA_VERSION = '3.6.1';
+
 /**
- * wllama 3.6.1's pinned CDN asset (same value as its `WasmFromCDN`). Inlined because the
+ * wllama's pinned CDN asset (same value as its `WasmFromCDN`). Inlined because the
  * documented `@wllama/wllama/esm/wasm-from-cdn.js` is not shipped in the 3.6.1 tarball
  * (only its .d.ts), and the bare `@wllama/wllama` specifier has no resolvable entry.
  */
 export const WLLAMA_CDN_ASSETS: AssetsPathConfig = {
-  default: 'https://cdn.jsdelivr.net/npm/@wllama/wllama@3.6.1/src/wasm/wllama.wasm',
+  default: `https://cdn.jsdelivr.net/npm/@wllama/wllama@${WLLAMA_VERSION}/src/wasm/wllama.wasm`,
 };
 
 export interface WllamaLoadRequest {
@@ -19,6 +22,25 @@ export interface WllamaLoadRequest {
   contextLength: number;
   /** Same shape as wllama's constructor config; defaults to the pinned CDN (ruling #26). */
   assetPaths?: AssetsPathConfig;
+}
+
+/** Internal controller that aborts on the caller's signal and on early consumer exit. */
+function linkedAbort(signal: AbortSignal | undefined): { signal: AbortSignal; dispose: () => void } {
+  const controller = new AbortController();
+  const onAbort = (): void => {
+    controller.abort(signal?.reason);
+  };
+  if (signal?.aborted === true) {
+    onAbort();
+  }
+  signal?.addEventListener('abort', onAbort, { once: true });
+  return {
+    signal: controller.signal,
+    dispose: (): void => {
+      signal?.removeEventListener('abort', onAbort);
+      controller.abort();
+    },
+  };
 }
 
 function deltaText(chunk: ChatCompletionChunk): string {
@@ -33,13 +55,14 @@ export async function loadWllama(req: WllamaLoadRequest): Promise<RuntimeAdapter
   return {
     chatStream: (messages, opts = {}): AsyncIterable<string> =>
       callbackToIterable<string>((push, end, fail) => {
+        const abort = linkedAbort(opts.signal);
         void wllama
           .createChatCompletion({
             messages,
             stream: true,
             max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
             temperature: opts.temperature ?? DEFAULT_TEMPERATURE,
-            abortSignal: opts.signal,
+            abortSignal: abort.signal,
             onData: (chunk: ChatCompletionChunk) => {
               const text = deltaText(chunk);
               if (text !== '') {
@@ -48,6 +71,7 @@ export async function loadWllama(req: WllamaLoadRequest): Promise<RuntimeAdapter
             },
           })
           .then(end, fail);
+        return abort.dispose;
       }),
     unload: (): Promise<void> => wllama.exit(),
   };
