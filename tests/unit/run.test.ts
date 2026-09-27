@@ -4,9 +4,13 @@ import { createOpfsSinks } from '../../src/store/opfsSinks';
 import { fakeFetch, json } from '../helpers/fakeFetch';
 import { gpuLaptop } from '../helpers/devices';
 import { ggufRepo } from '../helpers/hubFixtures';
+import { fallbackClient } from '../../src/runtimes/fallbackAdapter';
+import { ErrorCode, LlmRunError } from '../../src/errors';
 import type { SinkFactory } from '../../src/types';
 
 jest.mock('../../src/runtimes/loadCandidate', () => ({ loadCandidate: jest.fn() }));
+jest.mock('../../src/runtimes/fallbackAdapter', () => ({ fallbackClient: jest.fn() }));
+const fb = fallbackClient as jest.MockedFunction<typeof fallbackClient>;
 jest.mock('../../src/store/opfsSinks', () => ({ createOpfsSinks: jest.fn() }));
 const load = loadCandidate as jest.MockedFunction<typeof loadCandidate>;
 const opfs = createOpfsSinks as jest.MockedFunction<typeof createOpfsSinks>;
@@ -52,4 +56,25 @@ it('a non-LlmRunError load failure moves on to the next candidate; all failing �
   const fetchFn = fakeFetch(() => json(ggufRepo('org/m-GGUF', 'llama', 100)));
   await expect(run('org/m-GGUF', { fetchFn, device: gpuLaptop })).rejects.toMatchObject(
     { code: 'E_NO_FIT', reasons: expect.arrayContaining([expect.stringContaining('wasm boom')]) });
+});
+
+it('E_STORAGE while loading + fallback set → the fallback client (spec error table)', async () => {
+  const fbClient = { chat: jest.fn() } as unknown as Awaited<ReturnType<typeof fallbackClient>>;
+  fb.mockResolvedValue(fbClient);
+  load.mockRejectedValue(new LlmRunError(ErrorCode.Storage, 'full'));
+  const fetchFn = fakeFetch(() => json(ggufRepo('org/m-GGUF', 'llama', 100)));
+  await expect(run('org/m-GGUF', { fetchFn, device: gpuLaptop, fallback: 'https://my.site/llm' })).resolves.toBe(fbClient);
+  expect(fb).toHaveBeenCalledWith('https://my.site/llm', 'org/m-GGUF', fetchFn);
+});
+
+it('E_STORAGE while loading, no fallback → E_STORAGE is thrown', async () => {
+  load.mockRejectedValue(new LlmRunError(ErrorCode.Storage, 'full'));
+  const fetchFn = fakeFetch(() => json(ggufRepo('org/m-GGUF', 'llama', 100)));
+  await expect(run('org/m-GGUF', { fetchFn, device: gpuLaptop })).rejects.toMatchObject({ code: 'E_STORAGE' });
+});
+
+it('a non-routable load error (E_NETWORK) is thrown even with a fallback set', async () => {
+  load.mockRejectedValue(new LlmRunError(ErrorCode.Network, 'down'));
+  const fetchFn = fakeFetch(() => json(ggufRepo('org/m-GGUF', 'llama', 100)));
+  await expect(run('org/m-GGUF', { fetchFn, device: gpuLaptop, fallback: 'https://my.site/llm' })).rejects.toMatchObject({ code: 'E_NETWORK' });
 });

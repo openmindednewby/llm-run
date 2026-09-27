@@ -1,5 +1,6 @@
 import { withReload } from '../../../src/client/withReload';
 import { ErrorCode, LlmRunError } from '../../../src/errors';
+import { mapWllamaError } from '../../../src/runtimes/wllamaErrors';
 import type { RuntimeAdapter } from '../../../src/runtimes/types';
 
 const throwing = (afterTokens: string[], error: unknown): RuntimeAdapter => ({
@@ -43,4 +44,24 @@ it('a caller-aborted signal is never treated as GPU loss', async () => {
   c.abort();
   await expect(drain(withReload(load, failing([])).chatStream([], { signal: c.signal }))).rejects.toThrow('GPUDeviceLost');
   expect(load).not.toHaveBeenCalled();
+});
+it('a request error wllama reports (inference_error) is mapped to E_INFERENCE and costs no reload', async () => {
+  const load = jest.fn(async () => healthy);
+  const wErr = Object.assign(new Error('Model failed to start inference'), { type: 'inference_error' });
+  await expect(drain(withReload(load, throwing([], mapWllamaError(wErr))).chatStream([]))).rejects.toMatchObject({ code: 'E_INFERENCE' });
+  expect(load).not.toHaveBeenCalled();
+});
+it('a wllama error with no request type is left as-is, so it still triggers the reload', () => {
+  const e = Object.assign(new Error('Unknown error, please see console.log'), { name: 'WllamaRuntimeError' });
+  expect(mapWllamaError(e)).toBe(e);
+});
+it('a failed reload leaves no dead runtime: the next request reloads once and succeeds', async () => {
+  const load = jest.fn<Promise<RuntimeAdapter>, []>().mockRejectedValueOnce(new Error('load failed')).mockResolvedValue(healthy);
+  const dead = failing([]);
+  const spy = jest.spyOn(dead, 'chatStream');
+  const a = withReload(load, dead);
+  await expect(drain(a.chatStream([]))).rejects.toThrow('load failed');
+  await expect(drain(a.chatStream([]))).resolves.toEqual(['ok']);
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(spy).toHaveBeenCalledTimes(1);
 });

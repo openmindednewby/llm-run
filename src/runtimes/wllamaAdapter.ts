@@ -1,6 +1,7 @@
 import type { AssetsPathConfig, ChatCompletionChunk } from '@wllama/wllama/esm/index.js';
 import type { RuntimeAdapter } from './types';
 import { callbackToIterable } from './callbackToIterable';
+import { mapWllamaError } from './wllamaErrors';
 
 const DEFAULT_MAX_TOKENS = 512;
 const DEFAULT_TEMPERATURE = 0.7;
@@ -70,7 +71,9 @@ export async function loadWllama(req: WllamaLoadRequest): Promise<RuntimeAdapter
               }
             },
           })
-          .then(end, fail);
+          .then(end, (e: unknown) => {
+            fail(mapWllamaError(e));
+          });
         return abort.dispose;
       }),
     unload: (): Promise<void> => wllama.exit(),

@@ -25,6 +25,21 @@ function sharedSinks(onWarning: RunOptions['onWarning']): Promise<SinkFactory | 
 }
 
 /**
+ * Routes a failed candidate load per the spec error table: E_STORAGE → fallback when set (returns
+ * true), else thrown; E_GPU_LOST or a non-library error → try the next candidate (returns false);
+ * every other LlmRunError is thrown.
+ */
+function goesToFallback(e: unknown, hasFallback: boolean): boolean {
+  if (!(e instanceof LlmRunError) || e.code === ErrorCode.GpuLost) {
+    return false;
+  }
+  if (e.code === ErrorCode.Storage && hasFallback) {
+    return true;
+  }
+  throw e;
+}
+
+/**
  * Loads a Hugging Face model (or 'auto') into the best runtime this device can run and returns an
  * OpenAI-shaped client. An installed extension provider serves the call instead when present.
  */
@@ -52,8 +67,8 @@ export async function run(model: string, opts: RunOptions = {}): Promise<LlmClie
     try {
       return createClient(withReload(load, await load()), manifest.id);
     } catch (e) {
-      if (e instanceof LlmRunError && e.code !== ErrorCode.GpuLost) {
-        throw e;
+      if (goesToFallback(e, Boolean(opts.fallback))) {
+        break;
       }
       errors.push(`${candidate.runtime}/${String(candidate.quant)}: ${String(e)}`);
     }

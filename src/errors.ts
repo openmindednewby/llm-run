@@ -8,6 +8,8 @@ export const ErrorCode = {
   Gated: 'E_GATED',
   GpuLost: 'E_GPU_LOST',
   ModelNotFound: 'E_MODEL_NOT_FOUND',
+  /** The runtime rejected one request (e.g. prompt over the context); the model stays loaded. */
+  Inference: 'E_INFERENCE',
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
