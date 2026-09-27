@@ -64,9 +64,14 @@ async function fill(sink: ByteSink, req: EnsureFileRequest): Promise<void> {
 /** Returns true when the sink holds the whole file. Size 0 = unknown to the Hub: complete when the body ends. */
 async function pull(sink: ByteSink, req: EnsureFileRequest): Promise<boolean> {
   const sizeKnown = req.file.size > 0;
-  const have = await sink.size();
+  let have = await sink.size();
   if (sizeKnown && have === req.file.size) {
     return true;
+  }
+  if (sizeKnown && have > req.file.size) {
+    // stale or overshooting partial: a Range past the end would 416 forever on a persistent sink
+    await sink.truncate();
+    have = 0;
   }
   const headers = new Headers(req.headers);
   if (have > 0) {

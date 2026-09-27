@@ -46,6 +46,17 @@ describe('ensureFile', () => {
     expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
   });
 
+  it('a sink holding more bytes than the known size is emptied, then refetched from zero', async () => {
+    const sinks = memorySinks();
+    const s = await sinks.open(file.sha256);
+    await s.append(new Uint8Array(file.size + 10));
+    const fetchFn = jest.fn(async (_u: string, init?: RequestInit) =>
+      new Headers(init?.headers).has('range') ? new Response(null, { status: 416 }) : new Response(bytes));
+    const blob = await ensureFile({ file, url: 'u', sinks, fetchFn: fetchFn as unknown as typeof fetch });
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
   it('gives up with E_NETWORK after 3 failed attempts', async () => {
     const fetchFn = jest.fn(async () => { throw new TypeError('offline'); });
     await expect(ensureFile({ file, url: 'u', sinks: memorySinks(), fetchFn })).rejects.toMatchObject({ code: 'E_NETWORK' });
