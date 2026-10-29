@@ -37,3 +37,21 @@ it('names every quant outside the preference list as a reason (no silent refusal
   expect(p.reasons.join(' ')).toMatch(/Q3_K_M/);
   expect(p.reasons.join(' ')).toMatch(/F16/);
 });
+describe('planRun with an explicit maxModelBytes', () => {
+  const smolLm2Q8Bytes = 386_404_992;
+  const MiB = 1024 ** 2;
+  const desktopWebGpu = { ...gpuLaptop, memoryGiB: 8 };
+  const smolLm2 = { ...manifest([smolLm2Q8Bytes]), gguf: [{ quant: 'Q8_0', files: [{ path: 'smollm2-360m-instruct-q8_0.gguf', size: smolLm2Q8Bytes, sha256: null }], totalBytes: smolLm2Q8Bytes }] };
+
+  it('with a 386 MB model under a 400 MiB cap on a WebGPU desktop, plans the model', () => {
+    const plan = planRun(desktopWebGpu, smolLm2, { maxModelBytes: 400 * MiB });
+
+    expect(plan.candidates.map((c) => c.quant)).toEqual(['Q8_0']);
+  });
+
+  it('with a 386 MB model over a 300 MiB cap, refuses it and names the cap', () => {
+    const plan = planRun(desktopWebGpu, smolLm2, { maxModelBytes: 300 * MiB });
+
+    expect(plan.reasons.join(' ')).toMatch(/Q8_0: is 369 MB, maxModelBytes is 300 MB/);
+  });
+});

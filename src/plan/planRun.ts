@@ -1,6 +1,6 @@
 import type { Candidate, DeviceProfile, GgufVariant, ModelManifest, RunOptions, RunPlan } from '../types';
 import {
-  DEFAULT_MEMORY_GIB, GiB, OVERHEAD_FACTOR, QUANT_PREFERENCE, USABLE_MEMORY_SHARE,
+  DEFAULT_MEMORY_GIB, GiB, MiB, OVERHEAD_FACTOR, QUANT_PREFERENCE, USABLE_MEMORY_SHARE,
   WASM32_MAX_BYTES, WLLAMA_MAX_FILE_BYTES,
 } from './constants';
 import { LLAMA_CPP_ARCHITECTURES } from './llamaCppArchitectures';
@@ -8,6 +8,7 @@ import { LLAMA_CPP_ARCHITECTURES } from './llamaCppArchitectures';
 type PlanOptions = Pick<RunOptions, 'maxModelBytes'>;
 
 const gb = (n: number): string => `${(n / GiB).toFixed(1)} GB`;
+const mb = (n: number): string => `${Math.round(n / MiB)} MB`;
 
 /** Decides, without downloading weights, which runtime + quant of a model this device can run, and why not when none. */
 export function planRun(device: DeviceProfile, m: ModelManifest, opts: PlanOptions): RunPlan {
@@ -17,7 +18,7 @@ export function planRun(device: DeviceProfile, m: ModelManifest, opts: PlanOptio
   planWebllm(device, m, budget, { candidates, reasons });
   const archOk = m.architecture === null || LLAMA_CPP_ARCHITECTURES.has(m.architecture);
   if (archOk) {
-    planGguf(device, m, budget, { candidates, reasons });
+    planGguf(device, m, budget, { candidates, reasons, opts });
   } else {
     reasons.push(`architecture "${String(m.architecture)}" is not supported by llama.cpp/wllama yet`);
   }
@@ -43,13 +44,14 @@ function planWebllm(device: DeviceProfile, m: ModelManifest, budget: number, out
   out.candidates.push({ runtime: 'webllm', quant: 'q4f16_1', bytes: m.webllm.vramBytes, files: [], webllmModelId: m.webllm.modelId });
 }
 
-function planGguf(device: DeviceProfile, m: ModelManifest, budget: number, out: PlanOut): void {
+function planGguf(device: DeviceProfile, m: ModelManifest, budget: number, out: PlanOut & { opts: PlanOptions }): void {
+  const { opts } = out;
   const supported = new Set<string>(QUANT_PREFERENCE);
   for (const v of m.gguf.filter((g) => !supported.has(g.quant))) {
     out.reasons.push(`${v.quant}: not in the supported quant list`);
   }
   for (const v of orderByPreference(m.gguf)) {
-    const why = rejectGguf(v, device, budget);
+    const why = opts.maxModelBytes === undefined ? rejectGguf(v, device, budget) : rejectOverCap(v, device, opts.maxModelBytes);
     if (why === null) {
       out.candidates.push({ runtime: 'wllama', quant: v.quant, bytes: v.totalBytes, files: v.files, webllmModelId: null });
     } else {
@@ -66,6 +68,14 @@ function memoryBudget(device: DeviceProfile, opts: PlanOptions, reasons: string[
     reasons.push(`device memory unknown in this browser; assumed ${DEFAULT_MEMORY_GIB} GB (set maxModelBytes to override)`);
   }
   return (device.memoryGiB ?? DEFAULT_MEMORY_GIB) * GiB * USABLE_MEMORY_SHARE;
+}
+
+/** An explicit maxModelBytes caps the model's file bytes, not the bytes plus runtime overhead. */
+function rejectOverCap(v: GgufVariant, device: DeviceProfile, cap: number): string | null {
+  if (v.totalBytes > cap) {
+    return `is ${mb(v.totalBytes)}, maxModelBytes is ${mb(cap)}`;
+  }
+  return rejectGguf(v, device, Infinity);
 }
 
 function rejectGguf(v: GgufVariant, device: DeviceProfile, budget: number): string | null {

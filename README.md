@@ -74,7 +74,7 @@ if (verdict.ok) {
 |---|---|
 | `hfToken` | Hugging Face token, needed for gated models (accept the licence on the Hub first) |
 | `contextLength` | context window to load the model with (capped at the model's own; default 4096 or less) |
-| `maxModelBytes` | byte budget for the model, instead of the one measured from the device |
+| `maxModelBytes` | cap on the model's file bytes, instead of the memory budget measured from the device |
 | `onProgress(e)` | download progress per file: `{ file, loadedBytes, totalBytes }` |
 | `onWarning(message)` | non-fatal notices: no WebGPU (CPU mode), cache unavailable |
 | `wllamaAssetPaths` | where the wllama wasm is loaded from (below) |

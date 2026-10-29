@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 — 2026-10-29: maxModelBytes caps the file size
+
+- `maxModelBytes` now caps the model's file bytes. It was compared with the bytes plus the
+  1.2x runtime overhead, so a 386 MB model under a 400 MB cap threw `E_NO_FIT`.
+
 ## 0.2.0 — 2026-09-27: run() + OpenAI-shaped chat (CPU/WASM)
 
 - `run(model, opts?)` — loads a GGUF model from Hugging Face into `@wllama/wllama` (CPU/WASM)
