@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 — 2026-10-29: grammar + GPU layers
+
+- `chat.completions.create({ grammar })` and `GenerateOptions.grammar`: a GBNF grammar the reply must
+  match, passed to wllama. FLIER-2 "Flier Studio follow-ups" AC-41 "Settings, not documents".
+- `run(model, { nGpuLayers })`: explicit `n_gpu_layers` for wllama; omitted = wllama's default.
+
 ## 0.2.1 — 2026-10-29: maxModelBytes caps the file size
 
 - `maxModelBytes` now caps the model's file bytes. It was compared with the bytes plus the

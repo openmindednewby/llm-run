@@ -34,5 +34,5 @@ export async function loadCandidate(req: LoadRequest): Promise<RuntimeAdapter> {
   })));
   const contextLength = Math.min(opts.contextLength ?? DEFAULT_CONTEXT_LENGTH, m.contextLength ?? DEFAULT_CONTEXT_LENGTH);
   const { loadWllama } = await import('./wllamaAdapter');
-  return loadWllama({ files, contextLength, assetPaths: opts.wllamaAssetPaths });
+  return loadWllama({ files, contextLength, assetPaths: opts.wllamaAssetPaths, nGpuLayers: opts.nGpuLayers });
 }

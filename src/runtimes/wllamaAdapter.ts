@@ -23,6 +23,7 @@ export interface WllamaLoadRequest {
   contextLength: number;
   /** Same shape as wllama's constructor config; defaults to the pinned CDN (ruling #26). */
   assetPaths?: AssetsPathConfig;
+  nGpuLayers?: number;
 }
 
 /** Internal controller that aborts on the caller's signal and on early consumer exit. */
@@ -52,7 +53,8 @@ function deltaText(chunk: ChatCompletionChunk): string {
 export async function loadWllama(req: WllamaLoadRequest): Promise<RuntimeAdapter> {
   const { Wllama } = await import('@wllama/wllama/esm/index.js');
   const wllama = new Wllama(req.assetPaths ?? WLLAMA_CDN_ASSETS);
-  await wllama.loadModel(req.files, { n_ctx: req.contextLength });
+  const gpu = req.nGpuLayers === undefined ? {} : { n_gpu_layers: req.nGpuLayers };
+  await wllama.loadModel(req.files, { n_ctx: req.contextLength, ...gpu });
   return {
     chatStream: (messages, opts = {}): AsyncIterable<string> =>
       callbackToIterable<string>((push, end, fail) => {
@@ -64,6 +66,7 @@ export async function loadWllama(req: WllamaLoadRequest): Promise<RuntimeAdapter
             max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
             temperature: opts.temperature ?? DEFAULT_TEMPERATURE,
             abortSignal: abort.signal,
+            ...(opts.grammar === undefined ? {} : { grammar: opts.grammar }),
             onData: (chunk: ChatCompletionChunk) => {
               const text = deltaText(chunk);
               if (text !== '') {

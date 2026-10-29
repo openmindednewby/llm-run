@@ -7,6 +7,7 @@ export interface CompletionRequest {
   max_tokens?: number;
   temperature?: number;
   signal?: AbortSignal;
+  grammar?: string;
 }
 
 export interface ChatChunk {
@@ -50,7 +51,7 @@ function newId(): string {
 }
 
 function toOptions(r: CompletionRequest): GenerateOptions {
-  return { maxTokens: r.max_tokens, temperature: r.temperature, signal: r.signal };
+  return { maxTokens: r.max_tokens, temperature: r.temperature, signal: r.signal, grammar: r.grammar };
 }
 
 /**

@@ -99,6 +99,8 @@ export interface RunOptions {
   contextLength?: number;
   maxModelBytes?: number;
   powerPreference?: 'low-power' | 'high-performance';
+  /** Layers wllama offloads to the GPU (`n_gpu_layers`); 0 keeps the model on the CPU. Default: wllama's own. */
+  nGpuLayers?: number;
   onProgress?: (e: ProgressEvent) => void;
   onWarning?: (message: string) => void;
   /**
@@ -121,4 +123,6 @@ export interface GenerateOptions {
   maxTokens?: number;
   temperature?: number;
   signal?: AbortSignal;
+  /** GBNF grammar the reply must match (wllama `grammar`). */
+  grammar?: string;
 }
