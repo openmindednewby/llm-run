@@ -184,3 +184,72 @@ try {
   }
 }
 ```
+
+## Map free text to an intent, on the device
+
+`@dloizides/llm-run/intent` picks one of your intents for a sentence. Keywords answer at once with no
+download; an embedding model takes over after you ask for it, and every failure falls back to keywords.
+
+```ts
+import { createIntentMatcher, DEFAULT_EMBEDDING_MODEL_URL } from '@dloizides/llm-run/intent';
+
+const matcher = createIntentMatcher({
+  threshold: 0.35,
+  model: DEFAULT_EMBEDDING_MODEL_URL,
+  intents: [
+    { id: 'pricing', keywords: ['price', /how much/i], examples: ['what does it cost'] },
+    { id: 'quit', keywords: ['exit'], keywordsWin: true },
+    { id: 'off-topic', negative: true, examples: ['tell me a joke'] },
+  ],
+});
+
+await matcher.match('how much is it'); // { id: 'pricing', source: 'keyword', score: null, fallback: 'not-loaded' }
+
+const loaded = await matcher.loadOnDemand({
+  deadlineMs: 90_000,
+  onProgress: ({ phase, loaded, total }) => console.log(phase, loaded, total),
+});
+// { ok: true } or { ok: false, reason: 'deadline' | 'error', message }; it never rejects
+
+await matcher.match('is this expensive'); // { id: 'pricing', source: 'embedding', score: 0.61, fallback: null }
+```
+
+| result | meaning |
+|---|---|
+| `source: 'embedding'` | the closest example scored at or above `threshold`; `id` is `null` when it sits on a `negative` intent |
+| `source: 'keyword'` | a keyword hit; `fallback` says why the model did not answer, `null` for `matchKeywords()` and `keywordsWin` |
+| `source: 'none'` | nothing matched; `id` is `null` |
+| `fallback` | `'not-loaded'`, `'deadline'` (`queryDeadlineMs`, default 8000), `'error'`, `'below-threshold'` |
+
+Keywords: a string matches whole words in any case, a `RegExp` runs on the raw text, and the first intent
+listed wins. An intent marked `keywordsWin` returns on a hit without embedding the query.
+
+**Precomputed vectors.** After a load, `matcher.packVectors()` returns `{ intentId: { exampleText: base64 } }`.
+Ship each table as `Intent.vectors` and the next load embeds only the examples it has no vector for. A table
+must come from the same model: vectors of another length score 0.
+
+**No bundler.** This entry has no bare imports, so it works straight from a CDN with no import map. wllama
+3.6.1 is imported from jsDelivr by URL when `loadOnDemand` runs:
+
+```html
+<script type="module">
+  import { createIntentMatcher } from 'https://cdn.jsdelivr.net/npm/@dloizides/llm-run@0.4.0/dist/intent.js';
+</script>
+```
+
+**With a bundler,** pass your own copy, since a bundler cannot follow an import by URL:
+
+```ts
+import { createIntentMatcher, loadWllamaRuntime } from '@dloizides/llm-run/intent';
+
+createIntentMatcher({
+  threshold: 0.35,
+  model: 'https://example.com/embedding.gguf',
+  intents: [],
+  loadRuntime: (request) => loadWllamaRuntime(request, { importModule: () => import('@wllama/wllama/esm/index.js') }),
+});
+```
+
+`loadRuntime` also takes any `{ embed(text), dispose?() }` you build yourself, such as one running in your
+own worker. A strict CSP needs `script-src` and `connect-src` for jsDelivr and the model's host, or
+`moduleUrl` and `wasmUrl` in `loadWllamaRuntime`'s overrides pointing at self-hosted copies.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 - 2026-11-02: on-device intent matcher
+
+- New entry `@dloizides/llm-run/intent`: `createIntentMatcher({ intents, threshold, model })` maps free
+  text to one of the caller's intents. LP-UX-1 "Improve the UX of dloizides.com" D-LPUX-14.
+- Keywords answer at once with no download. `loadOnDemand({ onProgress, deadlineMs })` loads an embedding
+  GGUF only when called and never rejects. Any load failure, query failure or deadline falls back to keywords.
+- `packVectors()` and `Intent.vectors` ship precomputed example vectors, so load skips embedding them.
+- The entry has no bare imports: `https://cdn.jsdelivr.net/npm/@dloizides/llm-run@0.4.0/dist/intent.js`
+  imports in a browser with no bundler or import map, and fetches wllama 3.6.1 from jsDelivr when loading.
+
 ## 0.3.0 — 2026-10-29: grammar + GPU layers
 
 - `chat.completions.create({ grammar })` and `GenerateOptions.grammar`: a GBNF grammar the reply must
