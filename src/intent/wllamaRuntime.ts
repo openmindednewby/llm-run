@@ -9,9 +9,13 @@ export const WLLAMA_MODULE_URL = `${WLLAMA_CDN}/esm/index.js`;
 export const WLLAMA_WASM_URL = `${WLLAMA_CDN}/src/wasm/wllama.wasm`;
 export const DEFAULT_EMBEDDING_MODEL_URL = 'https://huggingface.co/second-state/All-MiniLM-L6-v2-Embedding-GGUF/resolve/main/all-MiniLM-L6-v2-Q8_0.gguf';
 
+interface EmbeddingResponse {
+  data: { embedding: number[] | string }[];
+}
+
 interface WllamaLike {
   loadModelFromUrl(url: string, options: Record<string, unknown>): Promise<void>;
-  createEmbedding(params: { input: string }): Promise<{ data: { embedding: number[] }[] }>;
+  createEmbedding(params: { input: string }): Promise<EmbeddingResponse>;
   exit(): Promise<void>;
 }
 
@@ -29,9 +33,9 @@ const importFromUrl = (url: string): Promise<WllamaModule> => import(url) as Pro
 
 const threadCount = (): number => (typeof navigator === 'undefined' ? MAX_THREADS : Math.min(MAX_THREADS, navigator.hardwareConcurrency || MAX_THREADS));
 
-const firstEmbedding = (response: { data: { embedding: number[] }[] }): number[] => {
+const firstEmbedding = (response: EmbeddingResponse): number[] => {
   const embedding = response.data[0]?.embedding;
-  if (embedding === undefined) {
+  if (embedding === undefined || typeof embedding === 'string') {
     throw new Error('the runtime returned no embedding');
   }
   return embedding;

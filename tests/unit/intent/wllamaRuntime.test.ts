@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadWllamaRuntime, WLLAMA_MODULE_URL, WLLAMA_WASM_URL } from '../../../src/intent/wllamaRuntime';
 
-const fakeModule = (embedding: number[]) => {
+const fakeModule = (embedding: number[] | string) => {
   const instances: { config: unknown; url?: string; options?: Record<string, unknown>; exited: boolean }[] = [];
   class Wllama {
     private readonly record: (typeof instances)[number];
@@ -16,7 +16,7 @@ const fakeModule = (embedding: number[]) => {
       (options.progressCallback as (p: { loaded: number; total: number }) => void)({ loaded: 1, total: 2 });
       return Promise.resolve();
     }
-    createEmbedding(): Promise<{ data: { embedding: number[] }[] }> {
+    createEmbedding(): Promise<{ data: { embedding: number[] | string }[] }> {
       return Promise.resolve({ data: [{ embedding }] });
     }
     exit(): Promise<void> {
@@ -64,5 +64,14 @@ describe('loadWllamaRuntime', () => {
     const pinned = pkg.peerDependencies['@wllama/wllama'];
 
     expect(WLLAMA_MODULE_URL).toContain(`@wllama/wllama@${pinned}/`);
+  });
+
+  it('with a base64 string embedding, rejects instead of returning a string as a vector', async () => {
+    const { module } = fakeModule('AAAA');
+    const runtime = await loadWllamaRuntime({ model: 'm', onProgress: () => undefined }, { importModule: () => Promise.resolve(module) });
+
+    const embedding = runtime.embed('q');
+
+    await expect(embedding).rejects.toThrow('no embedding');
   });
 });

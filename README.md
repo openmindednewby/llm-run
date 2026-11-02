@@ -250,6 +250,8 @@ createIntentMatcher({
 });
 ```
 
+The recipe typechecks against `@wllama/wllama` 3.6.1 with no cast.
+
 `loadRuntime` also takes any `{ embed(text), dispose?() }` you build yourself, such as one running in your
 own worker. A strict CSP needs `script-src` and `connect-src` for jsDelivr and the model's host, or
 `moduleUrl` and `wasmUrl` in `loadWllamaRuntime`'s overrides pointing at self-hosted copies.

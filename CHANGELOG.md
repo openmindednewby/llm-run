@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 - 2026-11-02: bundled importModule recipe typechecks
+
+- `WllamaOverrides.importModule` accepts `() => import('@wllama/wllama/esm/index.js')` with no cast: the
+  embedding in `WllamaModule` is now `number[] | string`, as in wllama 3.6.1. LP-UX-1 "Improve the UX of
+  dloizides.com" D-LPUX-14.
+- A string (base64) embedding rejects, so `createIntentMatcher` falls back to keywords.
+
 ## 0.4.0 - 2026-11-02: on-device intent matcher
 
 - New entry `@dloizides/llm-run/intent`: `createIntentMatcher({ intents, threshold, model })` maps free
