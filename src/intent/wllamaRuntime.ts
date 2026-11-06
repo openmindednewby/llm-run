@@ -30,7 +30,7 @@ export interface WllamaOverrides {
 }
 
 const importFromUrl = (url: string): Promise<WllamaModule> => {
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- LINT_CONFIG_OVERRIDE Metro rejects import() of a non-literal; Metro and strict-CSP apps pass importModule
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- LINT_CONFIG_OVERRIDE Metro rejects a dynamic import of a non-literal; Metro and strict-CSP apps pass importModule
   const importByUrl = new Function('url', 'return import(url)') as (moduleUrl: string) => Promise<WllamaModule>;
   return importByUrl(url);
 };
