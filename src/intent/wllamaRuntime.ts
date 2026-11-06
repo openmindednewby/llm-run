@@ -29,7 +29,11 @@ export interface WllamaOverrides {
   wasmUrl?: string;
 }
 
-const importFromUrl = (url: string): Promise<WllamaModule> => import(url) as Promise<WllamaModule>;
+const importFromUrl = (url: string): Promise<WllamaModule> => {
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- LINT_CONFIG_OVERRIDE Metro rejects import() of a non-literal; Metro and strict-CSP apps pass importModule
+  const importByUrl = new Function('url', 'return import(url)') as (moduleUrl: string) => Promise<WllamaModule>;
+  return importByUrl(url);
+};
 
 const threadCount = (): number => (typeof navigator === 'undefined' ? MAX_THREADS : Math.min(MAX_THREADS, navigator.hardwareConcurrency || MAX_THREADS));
 
@@ -41,7 +45,7 @@ const firstEmbedding = (response: EmbeddingResponse): number[] => {
   return embedding;
 };
 
-/** Load an embedding GGUF into wllama, imported from jsDelivr by URL. A bundled app passes `importModule` to use its own copy. */
+/** Load an embedding GGUF into wllama, imported from jsDelivr by URL (needs CSP 'unsafe-eval'). A bundled or Metro app passes `importModule` to use its own copy. */
 export async function loadWllamaRuntime(request: RuntimeRequest, overrides: WllamaOverrides = {}): Promise<EmbeddingRuntime> {
   const { Wllama } = await (overrides.importModule ?? importFromUrl)(overrides.moduleUrl ?? WLLAMA_MODULE_URL);
   const wllama = new Wllama({ default: overrides.wasmUrl ?? WLLAMA_WASM_URL });

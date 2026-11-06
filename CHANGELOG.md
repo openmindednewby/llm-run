@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2 - 2026-11-06: Metro can bundle `@dloizides/llm-run/intent`
+
+- The default wllama loader no longer writes `import(url)`, which Metro rejects ("Invalid call ... import(url)").
+  It builds the URL import with `new Function`, so it needs CSP `'unsafe-eval'`; a Metro or strict-CSP app
+  passes `importModule: () => import('@wllama/wllama/esm/index.js')`. BEAD-AI-1 "Prompt-to-chart generator".
+
 ## 0.4.1 - 2026-11-02: bundled importModule recipe typechecks
 
 - `WllamaOverrides.importModule` accepts `() => import('@wllama/wllama/esm/index.js')` with no cast: the
