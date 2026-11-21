@@ -27,7 +27,7 @@ jobs:
       - name: Build file:../ sibling dependencies
         run: |
           build_siblings() {
-            for dep in $(node -e "const p=require('$1/package.json');const all={...p.dependencies,...p.devDependencies,...p.peerDependencies};for(const v of Object.values(all))if(String(v).startsWith('file:../'))console.log(String(v).slice(8))"); do
+            for dep in $(node -e "const p=require('$1/package.json');const all={...p.peerDependencies,...p.dependencies,...p.devDependencies};for(const v of Object.values(all))if(String(v).startsWith('file:../'))console.log(String(v).slice(8))"); do
               dir="$(cd "$1/.." && pwd)/$dep"
               [ -d "$dir" ] && continue
               git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY_OWNER}/$dep.git" "$dir"
@@ -37,5 +37,7 @@ jobs:
           }
           build_siblings "$PWD"
       - run: npm ci --no-audit --no-fund
+      - name: Playwright browser (the package tests launch Chromium)
+        run: npx playwright install --with-deps chromium
       - name: Publish (prepublishOnly builds and tests; verbose shows the OIDC exchange result)
         run: npm publish --access public --loglevel verbose
